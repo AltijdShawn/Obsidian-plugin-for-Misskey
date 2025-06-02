@@ -33,6 +33,10 @@
         "desc": "プログラムからは使いません。アカウントがなんのアカウントかをメモしておくための項目です。",
         "placeholder": "例) 普段使ってるアカウント"
     },
+    "ishttps": {
+        "name": "Is HTTPS",
+        "desc": "Whether your instance goes through HTTP (not recommended) or HTTPS"
+    },
     "domain": {
         "name": "ドメイン",
         "desc": "Misskeyのドメインを入力してください。`https://misskey.io/@username`の`misskey.io`の部分です。",

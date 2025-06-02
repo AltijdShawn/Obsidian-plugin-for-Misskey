@@ -33,6 +33,10 @@
         "desc": "This is not used by the program. It is an item for memoizing what kind of account it is.",
         "placeholder": "e.g. Account I usually use"
     },
+    "ishttps": {
+        "name": "Is HTTPS",
+        "desc": "Whether your instance goes through HTTP (not recommended) or HTTPS"
+    },
     "domain": {
         "name": "Domain",
         "desc": "Please enter your Misskey domain. This is the part of `https://misskey.io/@username` that is `misskey.io`.",

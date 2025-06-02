@@ -15,6 +15,7 @@ interface MisskeyPluginSettings {
 interface Account {
 	isSelected: boolean;
 	memo: string;
+	isHttps: boolean;
 	domain: string;
 	prevText: string;
 	postText: string;
@@ -29,6 +30,7 @@ interface Account {
 const createDefaultAccount = (): Account => ({
 	isSelected: false,
 	memo: "",
+	isHttps: true,
 	domain: "",
 	prevText: "",
 	postText: "",
@@ -136,6 +138,15 @@ export class MisskeyPluginSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}));
 			new Setting(containerEl)
+				.setName(i18n.t("ishttps.name"))
+				.setDesc(i18n.t("ishttps.desc"))
+				.addToggle(toggle => toggle
+					.setValue(accountSetting.isHttps)
+					.onChange(async (value) => {
+						accountSetting.isHttps = value;
+						await this.plugin.saveSettings();
+					}));
+			new Setting(containerEl)
 				.setName(i18n.t("prevText.name"))
 				.setDesc(i18n.t("prevText.desc"))
 				.addTextArea(text => text
@@ -237,6 +248,8 @@ export class MisskeyPluginSettingsTab extends PluginSettingTab {
 					.onClick(async () => {
 						// MiAuthを使用してアクセストークンを取得します
 						const domain = accountSetting.domain;
+						const isHttps = accountSetting.isHttps;
+						const https = isHttps ? 'https' : 'http';
 
 						if (domain === "") {
 							new Notice(i18n.t("tokenSetting.domainNotSet"))
@@ -250,8 +263,8 @@ export class MisskeyPluginSettingsTab extends PluginSettingTab {
 
 						const appName = "obsidian-plugin-for-misskey"
 						const iconURL = "https://raw.githubusercontent.com/minimarimo3/Obsidian-plugin-for-Misskey/master/documents/icon_ki.png"
-						const authURL = `https://${domain}/miauth/${sessionId}?name=${appName}&icon=${iconURL}&permission=write:notes,write:drive`
-						const checkURL = `https://${domain}/api/miauth/${sessionId}/check`
+						const authURL = `${https}://${domain}/miauth/${sessionId}?name=${appName}&icon=${iconURL}&permission=write:notes,write:drive`
+						const checkURL = `${https}://${domain}/api/miauth/${sessionId}/check`
 
 						window.open(`${authURL}`)
 						let intervalCount = 0;
@@ -373,6 +386,8 @@ export default class MisskeyPlugin extends Plugin {
 			new Notice(i18n.t("uploadingImage"))
 			const fileContent = await this.app.vault.readBinary(targetFile);
 			const domain = selectedAccount.domain;
+			const isHttps = selectedAccount.isHttps;
+			const https = isHttps ? 'https' : 'http';
 			const token = selectedAccount.accountToken;
 			if (token === null) {
 				new Notice("アクセストークンが設定されていません。設定画面から設定してください。");
@@ -414,7 +429,7 @@ export default class MisskeyPlugin extends Plugin {
 
 			// 画像をアップロード
 			try{
-				const data = await (await fetch(`https://${domain}/api/drive/files/create`, {
+				const data = await (await fetch(`${https}://${domain}/api/drive/files/create`, {
 					method: "POST",
 					body: formData
 				})).json();
@@ -439,6 +454,8 @@ export default class MisskeyPlugin extends Plugin {
 	private async postToMisskey(note: string, noteVisibility: "public" | "home" | "followers",
 								fileIds: string[] = []): Promise<void> {
 		const domain = this.getSelectedAccount().domain;
+		const isHttps = this.getSelectedAccount().isHttps;
+		const https = isHttps ? 'https' : 'http';
 		const token = this.getSelectedAccount().accountToken;
 		if (token === null) {
 			new Notice("アクセストークンが設定されていません。設定画面から設定してください。");
@@ -463,7 +480,7 @@ export default class MisskeyPlugin extends Plugin {
 		}
 
 		const urlParams: RequestUrlParam = {
-			"url": `https://${domain}/api/notes/create`,
+			"url": `${https}://${domain}/api/notes/create`,
 			"method": "POST",
 			"headers": {
 				"Content-Type": "application/json"
@@ -494,13 +511,15 @@ export default class MisskeyPlugin extends Plugin {
 		const notes: string[][] = [];
 		for (const url of urls) {
 			// URLの形式が正しいかチェック
-			const regex = /https?:\/\/([a-zA-Z0-9.-]+)\/notes\/([a-zA-Z0-9]+)(?=[^a-zA-Z0-9]|$)/g;
+			const regex = /(https|http)?:\/\/([a-zA-Z0-9.-]+)\/notes\/([a-zA-Z0-9]+)(?=[^a-zA-Z0-9]|$)/g;
 			let match;
 			if ((match = regex.exec(url)) === null) {
 				new Notice(i18n.t("urlIsNotCorrect") + url);
 				continue;
 			}
 			const misskeyDomain = match[1];
+			const isHttps = this.getSelectedAccount().isHttps;
+			const https = isHttps ? 'https' : 'http';
 			const noteId = match[2];
 
 			let bodyObject: object = {
@@ -517,7 +536,7 @@ export default class MisskeyPlugin extends Plugin {
 			}
 
 			const urlParams: RequestUrlParam = {
-				"url": `https://${misskeyDomain}/api/notes/show`,
+				"url": `${https}://${misskeyDomain}/api/notes/show`,
 				"method": "POST",
 				"headers": {
 					"Content-Type": "application/json"
@@ -565,7 +584,7 @@ export default class MisskeyPlugin extends Plugin {
 
 			// 引用元のノートがある場合、それを引用として表示する
 			if (isResolveRenote && data.renote?.id){
-				const renote = (await this.quoteFromMisskeyNote(`https://${misskeyDomain}/notes/${data.renote.id}`, false))
+				const renote = (await this.quoteFromMisskeyNote(`${https}://${misskeyDomain}/notes/${data.renote.id}`, false))
 				if (renote.length){
 					note += `
 > RN: 
@@ -596,7 +615,7 @@ export default class MisskeyPlugin extends Plugin {
 			// 絵文字を走査する。ユーザー名に絵文字が含まれている場合があるためこの位置になる
 			while ((match = pattern.exec(note)) !== null) {
 				const urlParams: RequestUrlParam = {
-					"url": `https://${misskeyDomain}/api/notes/show`,
+					"url": `${https}://${misskeyDomain}/api/notes/show`,
 					"method": "POST",
 					"headers": {
 						"Content-Type": "application/json"
@@ -615,7 +634,7 @@ export default class MisskeyPlugin extends Plugin {
 				const emojiHostedDomain = noteResponse.json.uri ? (new URL(noteResponse.json.uri)).hostname : misskeyDomain;
 
 				const emojiName = match[1];
-				const url = `https://${emojiHostedDomain}/api/emoji?name=${emojiName}`;
+				const url = `${https}://${emojiHostedDomain}/api/emoji?name=${emojiName}`;
 				const response = await requestUrl({
 					"url": url,
 					"method": "GET"
@@ -752,7 +771,7 @@ export default class MisskeyPlugin extends Plugin {
 				new Notice(i18n.t("collectingNotes"))
 				const text = editor.getLine(editor.getCursor().line);
 				// URLを見つけるための正規表現パターン
-				const urlPattern = /(\b(https?):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/ig;
+				const urlPattern = /(\b((https|http)?):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/ig;
 				// テキストからURLを抽出
 				const urls = text.match(urlPattern);
 				if (!urls) { return; }
@@ -774,7 +793,7 @@ export default class MisskeyPlugin extends Plugin {
 
 				new Notice(i18n.t("collectingNotes"))
 				// URLを見つけるための正規表現パターン
-				const urlPattern = /(^|\s)((https?):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])(?=\s|$)/ig
+				const urlPattern = /(^|\s)(((https|http)?):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])(?=\s|$)/ig
 
 				for (let i = 0; i < editor.lineCount(); i++) {
 					let replaceText = editor.getLine(i);
